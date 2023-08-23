@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "nonebot-plugin-requests"
+version = "0.1.0"
+description = ""
+authors = ["Ailitonia <41713304+Ailitonia@users.noreply.github.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+nonebot2 = {version = "^2.0.0", extras = ["aiohttp", "httpx", "websockets"]}
+ujson = {version = "^5.8.0", optional = true}
+retry = "^0.9.2"
+
+[tool.poetry.extras]
+ujson = ["ujson"]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
