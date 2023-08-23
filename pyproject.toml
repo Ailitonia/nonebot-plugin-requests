@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "nonebot-plugin-requests"
-version = "0.1.0"
+version = "0.1.2"
 description = ""
 authors = ["Ailitonia <41713304+Ailitonia@users.noreply.github.com>"]
 readme = "README.md"
