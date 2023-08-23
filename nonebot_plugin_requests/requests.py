@@ -7,12 +7,11 @@
 @Software       :   PyCharm
 '''
 
+import asyncio
 import pathlib
-from asyncio.exceptions import TimeoutError
 from contextlib import asynccontextmanager
 from copy import deepcopy
-from retry import retry
-from typing import AsyncGenerator, Optional, Type, Any, cast
+from typing import Any, AsyncGenerator, Optional, cast
 from urllib.parse import urlparse
 
 try:
@@ -59,13 +58,8 @@ class NonebotRequests(object):
             timeout: Optional[float] = None,
             headers: HeaderTypes = None,
             cookies: CookieTypes = None,
-            retry_catching_exceptions: Type[Exception] = TimeoutError,
             tries: int = 3,
-            retry_delay: int = 0,
-            retry_max_delay: Optional[int] = None,
-            retry_backoff : int = 1,
-            retry_jitter: int = 0,
-            retry_logger=logger  # type: ignore
+            retry_delay: int = 2,
     ):
         self.driver = get_driver()
         if not isinstance(self.driver, ForwardDriver):
@@ -77,13 +71,8 @@ class NonebotRequests(object):
         self.timeout = self._default_timeout_time if timeout is None else timeout
         self.headers = self._default_headers if headers is None else headers
         self.cookies = cookies
-        self.retry_catching_exceptions = retry_catching_exceptions
         self.tries = tries
         self.retry_delay = retry_delay
-        self.retry_max_delay = retry_max_delay
-        self.retry_backoff = retry_backoff
-        self.retry_jitter = retry_jitter
-        self.retry_logger = retry_logger
 
     @staticmethod
     def parse_content_json(response: Response, **kwargs) -> Any:
@@ -109,18 +98,25 @@ class NonebotRequests(object):
     def get_default_headers(cls) -> dict[str, str]:
         return deepcopy(cls._default_headers)
 
-    async def request(self, setup: Request) -> Response:
+    async def request(self, setup: Request) -> Response: # type: ignore
         """装饰原 driver.request 方法, 自动重试"""
         self.driver = cast(ForwardDriver, self.driver)
-        return await retry(
-            exceptions=self.retry_catching_exceptions,
-            tries=self.tries,
-            delay=self.retry_delay,
-            max_delay=self.retry_max_delay,
-            backoff=self.retry_backoff,
-            jitter=self.retry_jitter,
-            logger=self.retry_logger, # type: ignore
-        )(self.driver.request(setup=setup))
+
+        _tries, _delay = self.tries, self.retry_delay
+        while _tries > 0:
+            try:
+                return await self.driver.request(setup=setup)
+            except Exception as e:
+                _tries -= 1
+                if _tries <= 0:
+                    raise e
+                
+                logger.warning(
+                    f'{setup!r} failed with {e!r}, retrying in {_delay!r} seconds'
+                )
+
+                await asyncio.sleep(self.retry_delay)
+
 
     @asynccontextmanager
     async def websocket(

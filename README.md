@@ -82,7 +82,7 @@ from nonebot_plugin_requests import NonebotRequests
 
 async def get_something():
     request = NonebotRequests()
-    response = request.get(...)
+    response = await request.get(...)
 
     json = NonebotRequests.parse_content_json(response)
     text = NonebotRequests.parse_content_text(response)
