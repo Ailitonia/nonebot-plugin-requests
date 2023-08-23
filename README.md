@@ -57,6 +57,26 @@ _✨ 封装 ForwardDriver 实现 HttpClient 功能 ✨_
 
 ## ⚙️ 配置
 
+### 环境配置
+
+在 nonebot2 项目的`.env`文件中为 nonebot2 配置 ForwardDriver 驱动器
+
+配置参考 [nonebot2 文档](https://nonebot.dev/docs/next/advanced/driver)
+
+</div>
+
+```
+# 使用 fastapi + aiohttp 驱动器
+DRIVER=~fastapi+~aiohttp
+
+# 使用 fastapi + httpx + websockets 驱动器
+DRIVER=~fastapi+~httpx+~websockets
+```
+
+<div align="center">
+
+### 插件可选配置
+
 在 nonebot2 项目的`.env`文件中添加下表中的配置
 
 | 配置项 | 必填 | 默认值 | 说明 |
@@ -87,5 +107,4 @@ async def get_something():
     json = NonebotRequests.parse_content_json(response)
     text = NonebotRequests.parse_content_text(response)
     ...
-
 ```
