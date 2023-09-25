@@ -11,7 +11,7 @@ import asyncio
 import pathlib
 from contextlib import asynccontextmanager
 from copy import deepcopy
-from typing import Any, AsyncGenerator, Optional, cast
+from typing import Any, AsyncGenerator, Optional
 from urllib.parse import urlparse
 
 try:
@@ -20,7 +20,14 @@ except ImportError:
     import json
 
 from nonebot import get_driver, logger
-from nonebot.drivers import Request, Response, WebSocket, ForwardDriver
+from nonebot.drivers import (
+    Request,
+    Response,
+    WebSocket,
+    ForwardDriver,
+    HTTPClientMixin,
+    WebSocketClientMixin
+)
 from nonebot.internal.driver.model import (
     QueryTypes,
     HeaderTypes,
@@ -100,7 +107,11 @@ class NonebotRequests(object):
 
     async def request(self, setup: Request) -> Response: # type: ignore
         """装饰原 driver.request 方法, 自动重试"""
-        self.driver = cast(ForwardDriver, self.driver)
+        if not isinstance(self.driver, HTTPClientMixin):
+            raise RuntimeError(
+                f"Current driver {self.driver.type} doesn't support forward http "
+                f"connections! NonebotRequests need a HTTPClient Driver to work."
+            )
 
         _tries, _delay = self.tries, self.retry_delay
         while _tries > 0:
@@ -135,7 +146,11 @@ class NonebotRequests(object):
             use_proxy: bool = True
     ) -> AsyncGenerator[WebSocket, None]:
         """建立 websocket 连接"""
-        self.driver = cast(ForwardDriver, self.driver)
+        if not isinstance(self.driver, WebSocketClientMixin):
+            raise RuntimeError(
+                f"Current driver {self.driver.type} doesn't support forward webSocket "
+                f"connections! NonebotRequests need a WebSocketClient Driver to work."
+            )
 
         setup = Request(
             method=method,
