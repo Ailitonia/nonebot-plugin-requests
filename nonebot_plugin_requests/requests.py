@@ -1,11 +1,11 @@
-'''
+"""
 @Author         :   Ailitonia
 @Date           :   2023/08/23 23:57:15
 @FileName       :   requests.py
 @Description    :   requests 封装
 @GitHub         :   https://github.com/Ailitonia
 @Software       :   PyCharm
-'''
+"""
 
 import asyncio
 import pathlib
@@ -21,12 +21,13 @@ except ImportError:
 
 from nonebot import get_driver, logger
 from nonebot.drivers import (
-    Request,
-    Response,
-    WebSocket,
     ForwardDriver,
     HTTPClientMixin,
-    WebSocketClientMixin
+    HTTPClientSession,
+    Response,
+    Request,
+    WebSocket,
+    WebSocketClientMixin,
 )
 from nonebot.internal.driver.model import (
     QueryTypes,
@@ -37,8 +38,7 @@ from nonebot.internal.driver.model import (
     FilesTypes,
 )
 
-
-from .config import plugin_config
+from .config import nonebot_plugin_requests_config
 
 
 class NonebotRequests(object):
@@ -50,13 +50,13 @@ class NonebotRequests(object):
         'accept-encoding': 'gzip, deflate, br',
         'accept-language': 'zh-CN,zh;q=0.9',
         'dnt': '1',
-        'sec-ch-ua': '"Not?A_Brand";v="8", "Chromium";v="108", "Google Chrome";v="108"',
+        'sec-ch-ua': '"Google Chrome";v="125", "Chromium";v="125", "Not.A/Brand";v="24"',
         'sec-ch-ua-mobile': '?0',
         'sec-ch-ua-platform': '"Windows"',
         'sec-gpc': '1',
         'upgrade-insecure-requests': '1',
-        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                      '(KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
+                      'Chrome/125.0.0.0 Safari/537.36'
     }
 
     def __init__(
@@ -84,7 +84,7 @@ class NonebotRequests(object):
     @staticmethod
     def parse_content_json(response: Response, **kwargs) -> Any:
         """解析 Response Content 为 Json"""
-        return json.loads(response.content, **kwargs) # type: ignore
+        return json.loads(response.content, **kwargs)  # type: ignore
 
     @staticmethod
     def parse_content_text(response: Response, encoding: str = 'utf-8') -> str | None:
@@ -105,12 +105,26 @@ class NonebotRequests(object):
     def get_default_headers(cls) -> dict[str, str]:
         return deepcopy(cls._default_headers)
 
-    async def request(self, setup: Request) -> Response: # type: ignore
+    def get_session(self, params: Optional[QueryTypes] = None, use_proxy: bool = True) -> HTTPClientSession:
+        if not isinstance(self.driver, HTTPClientMixin):
+            raise RuntimeError(
+                f"Current driver {self.driver.type} doesn't support forward http connections! "
+                "NonebotRequests need a HTTPClient Driver to work."
+            )
+        return self.driver.get_session(
+            params=params,
+            headers=self.headers,
+            cookies=self.cookies,
+            timeout=self.timeout,
+            proxy=nonebot_plugin_requests_config.proxy_url if use_proxy else None
+        )
+
+    async def request(self, setup: Request) -> Response:  # type: ignore
         """装饰原 driver.request 方法, 自动重试"""
         if not isinstance(self.driver, HTTPClientMixin):
             raise RuntimeError(
-                f"Current driver {self.driver.type} doesn't support forward http "
-                f"connections! NonebotRequests need a HTTPClient Driver to work."
+                f"Current driver {self.driver.type} doesn't support forward http connections! "
+                f"NonebotRequests need a HTTPClient Driver to work."
             )
 
         _tries, _delay = self.tries, self.retry_delay
@@ -121,13 +135,8 @@ class NonebotRequests(object):
                 _tries -= 1
                 if _tries <= 0:
                     raise e
-                
-                logger.warning(
-                    f'{setup!r} failed with {e!r}, retrying in {_delay!r} seconds'
-                )
-
+                logger.warning(f'{setup!r} failed with {e!r}, retrying in {_delay!r} seconds')
                 await asyncio.sleep(self.retry_delay)
-
 
     @asynccontextmanager
     async def websocket(
@@ -163,7 +172,7 @@ class NonebotRequests(object):
             json=json,
             files=files,
             timeout=self.timeout if timeout is None else timeout,
-            proxy=plugin_config.proxy_url if use_proxy else None
+            proxy=nonebot_plugin_requests_config.proxy_url if use_proxy else None
         )
 
         async with self.driver.websocket(setup=setup) as ws:
@@ -194,7 +203,7 @@ class NonebotRequests(object):
             json=json,
             files=files,
             timeout=self.timeout if timeout is None else timeout,
-            proxy=plugin_config.proxy_url if use_proxy else None
+            proxy=nonebot_plugin_requests_config.proxy_url if use_proxy else None
         )
         return await self.request(setup=setup)
 
@@ -223,7 +232,7 @@ class NonebotRequests(object):
             json=json,
             files=files,
             timeout=self.timeout if timeout is None else timeout,
-            proxy=plugin_config.proxy_url if use_proxy else None
+            proxy=nonebot_plugin_requests_config.proxy_url if use_proxy else None
         )
         return await self.request(setup=setup)
 
